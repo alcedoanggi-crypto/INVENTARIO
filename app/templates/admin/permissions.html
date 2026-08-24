@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Permisología — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h3 class="fw-bold mb-0">Matriz de Permisología</h3>
+  <p class="text-muted mb-0">Control de acceso y permisos por módulo</p>
+</div>
+
+<div class="app-card p-3">
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle text-center">
+      <thead class="table-light">
+        <tr>
+          <th class="text-start">Módulo / Acción</th>
+          <th>Administrador</th>
+          <th>Usuario Operativo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-start fw-semibold">Productos (Crear / Editar / Eliminar)</td>
+          <td><i class="bi bi-check-circle-fill text-success fs-5"></i></td>
+          <td><i class="bi bi-check-circle-fill text-success fs-5"></i></td>
+        </tr>
+        <tr>
+          <td class="text-start fw-semibold">Departamentos y Categorías</td>
+          <td><i class="bi bi-check-circle-fill text-success fs-5"></i></td>
+          <td><i class="bi bi-x-circle-fill text-danger fs-5"></i></td>
+        </tr>
+        <tr>
+          <td class="text-start fw-semibold">Módulo de Administración</td>
+          <td><i class="bi bi-check-circle-fill text-success fs-5"></i></td>
+          <td><i class="bi bi-x-circle-fill text-danger fs-5"></i></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

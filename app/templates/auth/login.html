@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+
+  <div class="brand-panel">
+    <div class="brand-mark"><i class="bi bi-box-seam-fill"></i></div>
+    <h1>Inventario<span class="text-brand-accent">Pro</span></h1>
+    <p class="lead-text">
+      Plataforma de control de inventario en tiempo real: productos,
+      movimientos, departamentos y alertas de stock en un solo lugar.
+    </p>
+    <ul class="brand-feature-list">
+      <li><i class="bi bi-shield-check"></i> Acceso protegido por usuario y contraseña</li>
+      <li><i class="bi bi-graph-up-arrow"></i> Dashboard con métricas en tiempo real</li>
+      <li><i class="bi bi-clock-history"></i> Historial (kardex) de cada movimiento</li>
+    </ul>
+  </div>
+
+  <div class="form-panel">
+    <div class="login-card">
+      <div class="eyebrow">Acceso al sistema</div>
+      <h2>Bienvenido de nuevo</h2>
+      <p class="subtitle">Ingresa tus credenciales para continuar</p>
+
+      <!-- Alertas dentro de la tarjeta -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-danger alert-dismissible fade show mb-3 py-2 px-3 small" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ message }}
+              <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.username.label(class="form-label small fw-semibold text-secondary") }}
+          <div class="input-icon-group">
+            <i class="bi bi-person"></i>
+            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="admin", autofocus=true) }}
+          </div>
+          {% for error in form.username.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.password.label(class="form-label small fw-semibold text-secondary") }}
+          <div class="input-icon-group">
+            <i class="bi bi-lock"></i>
+            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="••••••••") }}
+          </div>
+          {% for error in form.password.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+
+        {{ form.submit(class="btn btn-brand w-100 py-2") }}
+      </form>
+
+      <p class="text-center small text-muted mt-4 mb-0">
+        ¿No tienes cuenta? <a href="{{ url_for('auth.register') }}" class="text-decoration-none fw-semibold text-brand-accent">Regístrate</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

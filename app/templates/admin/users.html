@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Gestión de Usuarios</h2>
+    <p class="text-muted small mb-0">Administración de cuentas y roles del sistema</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+    <i class="bi bi-person-plus me-1"></i> Nuevo Usuario
+  </button>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">ID</th>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="ps-3 fw-bold">{{ u.id }}</td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.email or 'Sin email' }}</td>
+            <td>
+              <span class="badge bg-{{ 'primary' if u.role == 'admin' else 'secondary' }}">
+                {{ u.role|capitalize }}
+              </span>
+            </td>
+            <td class="text-end pe-3">
+              <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editModal{{ u.id }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              {% if u.id != current_user.id %}
+              <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ u.id }}">
+                <i class="bi bi-trash"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+
+          <!-- MODAL EDITAR USUARIO -->
+          <div class="modal fade" id="editModal{{ u.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form action="{{ url_for('users.edit_user', user_id=u.id) }}" method="POST">
+                  <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Editar Usuario: {{ u.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Email</label>
+                      <input type="email" name="email" class="form-control" value="{{ u.email or '' }}">
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Rol</label>
+                      <select name="role" class="form-select">
+                        <option value="usuario" {% if u.role == 'usuario' %}selected{% endif %}>Usuario</option>
+                        <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Administrador</option>
+                      </select>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Nueva Contraseña <span class="text-muted fw-normal">(opcional)</span></label>
+                      <input type="password" name="password" class="form-control" placeholder="Dejar en blanco para conservar la actual">
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL ELIMINAR USUARIO -->
+          {% if u.id != current_user.id %}
+          <div class="modal fade" id="deleteModal{{ u.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form action="{{ url_for('users.delete_user', user_id=u.id) }}" method="POST">
+                  <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body text-start">
+                    ¿Estás seguro de que deseas eliminar al usuario <strong>{{ u.username }}</strong>?
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO USUARIO -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('users.create_user') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Crear Nuevo Usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Usuario *</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" name="email" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña *</label>
+            <input type="password" name="password" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Rol</label>
+            <select name="role" class="form-select">
+              <option value="usuario">Usuario</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

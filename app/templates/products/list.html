@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Productos — {{ app_name }}{% endblock %}
+{% block content %}
+
+<!-- MUESTRA DE ALERTAS Y NOTIFICACIONES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+        <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else 'bi-exclamation-triangle-fill text-danger' }} me-2"></i>
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold mb-0">Productos</h3>
+    <p class="text-muted mb-0">{{ pagination.total }} producto(s) en el inventario</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('products.export_csv') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-download"></i> Exportar CSV
+    </a>
+    <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#createProductModal">
+      <i class="bi bi-plus-lg"></i> Nuevo producto
+    </button>
+  </div>
+</div>
+
+<div class="app-card p-3 mb-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Buscar</label>
+      <input type="text" name="q" value="{{ search }}" class="form-control" placeholder="Nombre o SKU...">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Categoría</label>
+      <select name="category_id" class="form-select">
+        <option value="">Todas</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <div class="form-check mt-4">
+        <input class="form-check-input" type="checkbox" name="low_stock" value="1" id="lowStock" {% if only_low_stock %}checked{% endif %}>
+        <label class="form-check-label small" for="lowStock">Solo stock bajo</label>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-brand w-100"><i class="bi bi-search"></i> Filtrar</button>
+    </div>
+  </form>
+</div>
+
+<div class="app-card p-3">
+  {% if products %}
+  <div class="table-responsive">
+    <table class="table table-app align-middle mb-0">
+      <thead>
+        <tr>
+          <th></th>
+          <th>SKU</th>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>
+            {% if p.image_filename %}
+              <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" class="product-thumb" alt="{{ p.name }}">
+            {% else %}
+              <div class="product-thumb d-flex align-items-center justify-content-center text-muted">
+                <i class="bi bi-image"></i>
+              </div>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ p.sku }}</td>
+          <td>
+            <a href="{{ url_for('products.view_product', product_id=p.id) }}" class="fw-semibold text-decoration-none">{{ p.name }}</a>
+          </td>
+          <td>{{ p.category.name if p.category else "—" }}</td>
+          <td>${{ "%.2f"|format(p.price) }}</td>
+          <td>
+            {% if p.is_low_stock %}
+              <span class="badge badge-low-stock rounded-pill px-3 py-2">{{ p.quantity }}</span>
+            {% else %}
+              <span class="badge badge-ok-stock rounded-pill px-3 py-2">{{ p.quantity }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <!-- REGISTRAR MOVIMIENTO -->
+            <button type="button" class="btn btn-sm btn-outline-secondary" title="Registrar movimiento"
+                    data-bs-toggle="modal" data-bs-target="#movementModal{{ p.id }}">
+              <i class="bi bi-arrow-left-right"></i>
+            </button>
+
+            <!-- EDITAR PRODUCTO -->
+            <button type="button" class="btn btn-sm btn-outline-secondary" title="Editar"
+                    data-bs-toggle="modal" data-bs-target="#editProductModal{{ p.id }}">
+              <i class="bi bi-pencil"></i>
+            </button>
+
+            <!-- ELIMINAR PRODUCTO -->
+            <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar"
+                    data-bs-toggle="modal" data-bs-target="#deleteModal{{ p.id }}">
+              <i class="bi bi-trash"></i>
+            </button>
+
+            <!-- MODAL EDITAR PRODUCTO -->
+            <div class="modal fade text-start" id="editProductModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                  <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Editar producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                  </div>
+                  <form action="{{ url_for('products.edit_product', product_id=p.id) }}" method="POST" enctype="multipart/form-data">
+                    {{ product_form.hidden_tag() }}
+                    <div class="modal-body">
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label small fw-semibold">SKU</label>
+                          <input type="text" name="sku" class="form-control" value="{{ p.sku }}" required>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label small fw-semibold">Categoría</label>
+                          <select name="category_id" class="form-select" required>
+                            {% for c in categories %}
+                            <option value="{{ c.id }}" {% if p.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label small fw-semibold">Nombre</label>
+                          <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label small fw-semibold">Descripción</label>
+                          <textarea name="description" class="form-control" rows="2">{{ p.description or '' }}</textarea>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-semibold">Precio</label>
+                          <input type="number" step="0.01" name="price" class="form-control" value="{{ p.price }}" required>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-semibold">Stock</label>
+                          <input type="number" name="quantity" class="form-control" value="{{ p.quantity }}" required>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-semibold">Stock mínimo</label>
+                          <input type="number" name="min_stock" class="form-control" value="{{ p.min_stock }}" required>
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label small fw-semibold">Imagen</label>
+                          <input type="file" name="image" class="form-control">
+                          {% if p.image_filename %}
+                            <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" class="product-thumb mt-2" alt="{{ p.name }}">
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-brand px-4">Guardar cambios</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- MODAL REGISTRAR MOVIMIENTO -->
+            <div class="modal fade text-start" id="movementModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                  <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Registrar movimiento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                  </div>
+                  <form action="{{ url_for('movements.create_movement') }}" method="POST">
+                    {{ movement_form.hidden_tag() }}
+                    <input type="hidden" name="product_id" value="{{ p.id }}">
+
+                    <div class="modal-body">
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Producto</label>
+                        <input type="text" class="form-control" value="{{ p.sku }} — {{ p.name }} (Stock: {{ p.quantity }})" disabled>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold d-block">Tipo de movimiento</label>
+                        <div class="btn-group w-100" role="group">
+                          <input type="radio" class="btn-check" name="movement_type" id="type_entrada_{{ p.id }}" value="entrada" checked autocomplete="off">
+                          <label class="btn btn-outline-secondary" for="type_entrada_{{ p.id }}">
+                            <i class="bi bi-box-arrow-in-down-left"></i> Entrada
+                          </label>
+
+                          <input type="radio" class="btn-check" name="movement_type" id="type_salida_{{ p.id }}" value="salida" autocomplete="off">
+                          <label class="btn btn-outline-secondary" for="type_salida_{{ p.id }}">
+                            <i class="bi bi-box-arrow-up-right"></i> Salida
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="mb-3">
+                        <label for="quantity_{{ p.id }}" class="form-label small fw-semibold">Cantidad</label>
+                        <input type="number" class="form-control" id="quantity_{{ p.id }}" name="quantity" min="1" required placeholder="Ej: 5">
+                      </div>
+
+                      <div class="mb-3">
+                        <label for="reason_{{ p.id }}" class="form-label small fw-semibold">Motivo</label>
+                        <input type="text" class="form-control" id="reason_{{ p.id }}" name="reason" placeholder="Ej. Compra, venta...">
+                      </div>
+                    </div>
+
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-brand px-4">Guardar movimiento</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- MODAL ELIMINAR -->
+            <div class="modal fade text-start" id="deleteModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                  <div class="modal-body p-4">
+                    <p class="mb-0">¿Eliminar el producto <strong>{{ p.name }}</strong>? Esta acción no se puede deshacer.</p>
+                  </div>
+                  <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form method="POST" action="{{ url_for('products.delete_product', product_id=p.id) }}">
+                      <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <nav class="mt-3">
+    <ul class="pagination justify-content-center mb-0">
+      {% for page_num in pagination.iter_pages() %}
+        {% if page_num %}
+          <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('products.list_products', page=page_num, q=search, category_id=category_id, low_stock=1 if only_low_stock else None) }}">{{ page_num }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-box-seam"></i>
+    <p class="mt-2 mb-0">No se encontraron productos.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- MODAL CREAR NUEVO PRODUCTO -->
+<div class="modal fade text-start" id="createProductModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Nuevo producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form action="{{ url_for('products.create_product') }}" method="POST" enctype="multipart/form-data">
+        {{ product_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ product_form.sku.label(class="form-label small fw-semibold") }}
+              {{ product_form.sku(class="form-control") }}
+            </div>
+            <div class="col-md-6">
+              {{ product_form.category_id.label(class="form-label small fw-semibold") }}
+              {{ product_form.category_id(class="form-select") }}
+            </div>
+            <div class="col-12">
+              {{ product_form.name.label(class="form-label small fw-semibold") }}
+              {{ product_form.name(class="form-control") }}
+            </div>
+            <div class="col-12">
+              {{ product_form.description.label(class="form-label small fw-semibold") }}
+              {{ product_form.description(class="form-control", rows=2) }}
+            </div>
+            <div class="col-md-4">
+              {{ product_form.price.label(class="form-label small fw-semibold") }}
+              {{ product_form.price(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+              {{ product_form.quantity.label(class="form-label small fw-semibold") }}
+              {{ product_form.quantity(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+              {{ product_form.min_stock.label(class="form-label small fw-semibold") }}
+              {{ product_form.min_stock(class="form-control") }}
+            </div>
+            <div class="col-12">
+              {{ product_form.image.label(class="form-label small fw-semibold") }}
+              {{ product_form.image(class="form-control") }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-brand px-4">Guardar producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

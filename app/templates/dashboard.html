@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-0">Dashboard</h3>
+    <p class="text-muted mb-0">Resumen general del inventario</p>
+  </div>
+  <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalRegistrarMovimiento">
+    <i class="bi bi-plus-lg"></i> Registrar movimiento
+  </button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card kpi-indigo">
+      <div class="kpi-icon-badge"><i class="bi bi-box-seam"></i></div>
+      <div class="kpi-value">{{ total_products }}</div>
+      <div class="kpi-label">Productos registrados</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card kpi-cyan">
+      <div class="kpi-icon-badge"><i class="bi bi-stack"></i></div>
+      <div class="kpi-value">{{ total_units }}</div>
+      <div class="kpi-label">Unidades en stock</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card kpi-amber">
+      <div class="kpi-icon-badge"><i class="bi bi-cash-stack"></i></div>
+      <div class="kpi-value">${{ "%.2f"|format(total_value) }}</div>
+      <div class="kpi-label">Valor total del inventario</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card kpi-rose">
+      <div class="kpi-icon-badge"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="kpi-value">{{ low_stock_products|length }}</div>
+      <div class="kpi-label">Productos con stock bajo</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="app-card p-3 h-100">
+      <h6 class="fw-semibold mb-3">Movimientos de los últimos 7 días</h6>
+      <canvas id="movementsChart" height="110"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="app-card p-3 h-100">
+      <h6 class="fw-semibold mb-3">Productos por departamento</h6>
+      <canvas id="deptChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="app-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-semibold mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> Alertas de stock bajo</h6>
+        <a href="{{ url_for('products.list_products', low_stock=1) }}" class="small">Ver todos</a>
+      </div>
+      {% if low_stock_products %}
+        <ul class="list-group list-group-flush">
+          {% for p in low_stock_products %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <div>
+              <div class="fw-semibold">{{ p.name }}</div>
+              <div class="small text-muted">{{ p.sku }}</div>
+            </div>
+            <span class="badge badge-low-stock rounded-pill px-3 py-2">{{ p.quantity }} / min {{ p.min_stock }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state py-3">
+          <i class="bi bi-check-circle"></i>
+          <p class="mb-0 mt-2">Todo el stock está en buen nivel 🎉</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="app-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history"></i> Movimientos recientes</h6>
+        <a href="{{ url_for('movements.list_movements') }}" class="small">Ver todos</a>
+      </div>
+      {% if recent_movements %}
+        <ul class="list-group list-group-flush">
+          {% for mv in recent_movements %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <div>
+              <div class="fw-semibold">{{ mv.product.name if mv.product else "Producto eliminado" }}</div>
+              <div class="small text-muted">{{ mv.created_at.strftime("%d/%m/%Y %H:%M") }}</div>
+            </div>
+            <span class="badge {{ 'text-bg-success' if mv.movement_type == 'entrada' else 'text-bg-danger' }} rounded-pill px-3 py-2">
+              {{ '+' if mv.movement_type == 'entrada' else '-' }}{{ mv.quantity }}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state py-3">
+          <i class="bi bi-inboxes"></i>
+          <p class="mb-0 mt-2">Aún no hay movimientos registrados</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- VENTANA MODAL PARA REGISTRAR MOVIMIENTO -->
+<div class="modal fade" id="modalRegistrarMovimiento" tabindex="-1" aria-labelledby="modalRegistrarMovimientoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalRegistrarMovimientoLabel">Registrar movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form action="{{ url_for('movements.create_movement') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="product_id" class="form-label fw-semibold">Producto</label>
+            <select class="form-select" id="product_id" name="product_id" required>
+              <option value="" selected disabled>Seleccionar producto...</option>
+              {% if products %}
+                {% for p in products %}
+                  <option value="{{ p.id }}">{{ p.name }} (Stock actual: {{ p.quantity }})</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="movement_type" class="form-label fw-semibold">Tipo de movimiento</label>
+            <select class="form-select" id="movement_type" name="movement_type" required>
+              <option value="entrada">Entrada (+)</option>
+              <option value="salida">Salida (-)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="quantity" class="form-label fw-semibold">Cantidad</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" required placeholder="Ej: 10">
+          </div>
+
+          <div class="mb-3">
+            <label for="description" class="form-label fw-semibold">Notas / Motivo</label>
+            <textarea class="form-control" id="description" name="description" rows="2" placeholder="Opcional"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-brand">Guardar movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const movementsCtx = document.getElementById('movementsChart');
+  new Chart(movementsCtx, {
+    type: 'line',
+    data: {
+      labels: {{ chart_labels|tojson }},
+      datasets: [
+        {
+          label: 'Entradas',
+          data: {{ chart_entradas|tojson }},
+          borderColor: '#15803d',
+          backgroundColor: 'rgba(21,128,61,0.08)',
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: 'Salidas',
+          data: {{ chart_salidas|tojson }},
+          borderColor: '#b91c1c',
+          backgroundColor: 'rgba(185,28,28,0.08)',
+          tension: 0.3,
+          fill: true,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+
+  const deptCtx = document.getElementById('deptChart');
+  new Chart(deptCtx, {
+    type: 'doughnut',
+    data: {
+      labels: {{ dept_labels|tojson }},
+      datasets: [{
+        data: {{ dept_values|tojson }},
+        backgroundColor: ['#1e3a5f', '#2563eb', '#0369a1', '#b45309', '#334155', '#64748b'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+    }
+  });
+</script>
+{% endblock %}

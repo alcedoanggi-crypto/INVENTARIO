@@ -1,0 +1,31 @@
+
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: inventario_db
+    environment:
+      - POSTGRES_USER=inventario_user
+      - POSTGRES_PASSWORD=inventario_pass
+      - POSTGRES_DB=inventario_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    container_name: inventario_web
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=clave_secreta_super_segura_de_produccion
+      - DATABASE_URL=postgresql://inventario_user:inventario_pass@db:5432/inventario_db
+    volumes:
+      - ./app/static/uploads:/app/static/uploads
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

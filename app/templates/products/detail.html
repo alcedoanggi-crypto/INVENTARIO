@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — {{ app_name }}{% endblock %}
+{% block content %}
+
+<!-- ALERTA DE CONFIRMACIÓN DE MOVIMIENTO -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+        <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else 'bi-exclamation-triangle-fill text-danger' }} me-2"></i>
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('products.list_products') }}" class="text-decoration-none small"><i class="bi bi-arrow-left"></i> Volver a productos</a>
+    <h3 class="fw-bold mb-0 mt-1">{{ product.name }}</h3>
+    <p class="text-muted mb-0">SKU: {{ product.sku }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <!-- BOTÓN QUE ABRE EL MODAL DE REGISTRO DE MOVIMIENTO -->
+    <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalRegistrarMovimiento">
+      <i class="bi bi-arrow-left-right"></i> Registrar movimiento
+    </button>
+    <a href="{{ url_for('products.edit_product', product_id=product.id) }}" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="app-card p-3 text-center">
+      {% if product.image_filename %}
+        <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" class="img-fluid rounded-3 mb-3" style="max-height:220px; object-fit:cover;" alt="{{ product.name }}">
+      {% else %}
+        <div class="empty-state py-5"><i class="bi bi-image"></i></div>
+      {% endif %}
+      <p class="text-muted small mb-1">{{ product.description or "Sin descripción." }}</p>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-value">{{ product.quantity }}</div>
+          <div class="kpi-label">En stock</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-cyan">
+          <div class="kpi-value">${{ "%.2f"|format(product.price) }}</div>
+          <div class="kpi-label">Precio unitario</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-value">${{ "%.2f"|format(product.total_value) }}</div>
+          <div class="kpi-label">Valor total</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card {{ 'kpi-rose' if product.is_low_stock else 'kpi-cyan' }}">
+          <div class="kpi-value">{{ product.min_stock }}</div>
+          <div class="kpi-label">Stock mínimo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-card p-3 mt-3">
+      <div class="d-flex justify-content-between text-muted small">
+        <span><i class="bi bi-diagram-3"></i> Departamento: <strong>{{ product.department.name if product.department else "—" }}</strong></span>
+        <span><i class="bi bi-tags"></i> Categoría: <strong>{{ product.category.name if product.category else "—" }}</strong></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app-card p-3">
+  <h6 class="fw-semibold mb-3"><i class="bi bi-clock-history"></i> Kardex — historial de movimientos</h6>
+  {% if product.movements %}
+  <div class="table-responsive">
+    <table class="table table-app align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>Motivo</th>
+          <th>Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mv in product.movements %}
+        <tr>
+          <td>{{ mv.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if mv.movement_type == 'entrada' else 'text-bg-danger' }}">
+              {{ mv.movement_type|capitalize }}
+            </span>
+          </td>
+          <td>{{ '+' if mv.movement_type == 'entrada' else '-' }}{{ mv.quantity }}</td>
+          <td class="text-muted">{{ mv.reason or "—" }}</td>
+          <td class="text-muted">{{ mv.user.username if mv.user else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state py-3">
+    <i class="bi bi-inboxes"></i>
+    <p class="mb-0 mt-2">Este producto aún no tiene movimientos registrados.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- VENTANA MODAL DE MOVIMIENTO -->
+<div class="modal fade" id="modalRegistrarMovimiento" tabindex="-1" aria-labelledby="modalRegistrarMovimientoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalRegistrarMovimientoLabel">Registrar movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form action="{{ url_for('movements.create_movement') }}" method="POST">
+        {{ movement_form.hidden_tag() }}
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Producto</label>
+            <input type="text" class="form-control" value="{{ product.sku }} — {{ product.name }} (Stock actual: {{ product.quantity }})" disabled>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold d-block">Tipo de movimiento</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="movement_type" id="detail_type_entrada" value="entrada" checked autocomplete="off">
+              <label class="btn btn-outline-secondary" for="detail_type_entrada">
+                <i class="bi bi-box-arrow-in-down-left"></i> Entrada
+              </label>
+
+              <input type="radio" class="btn-check" name="movement_type" id="detail_type_salida" value="salida" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="detail_type_salida">
+                <i class="bi bi-box-arrow-up-right"></i> Salida
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="detail_quantity" class="form-label small fw-semibold">Cantidad</label>
+            <input type="number" class="form-control" id="detail_quantity" name="quantity" min="1" required placeholder="Ej: 5">
+          </div>
+
+          <div class="mb-3">
+            <label for="detail_reason" class="form-label small fw-semibold">Motivo</label>
+            <input type="text" class="form-control" id="detail_reason" name="reason" placeholder="Ej. Compra a proveedor, venta...">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-brand px-4">Guardar movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

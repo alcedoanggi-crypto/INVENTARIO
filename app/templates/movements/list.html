@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Movimientos — {{ app_name }}{% endblock %}
+{% block content %}
+
+<!-- ALERTA DE CONFIRMACIÓN -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+        <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else 'bi-exclamation-triangle-fill text-danger' }} me-2"></i>
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-0">Movimientos de stock</h3>
+    <p class="text-muted mb-0">{{ pagination.total }} movimiento(s) registrados</p>
+  </div>
+  <!-- BOTÓN QUE ACTIVA LA VENTANA MODAL -->
+  <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalRegistrarMovimiento">
+    <i class="bi bi-plus-lg"></i> Registrar movimiento
+  </button>
+</div>
+
+<div class="app-card p-3">
+  {% if movements %}
+  <div class="table-responsive">
+    <table class="table table-app align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Producto</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>Motivo</th>
+          <th>Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mv in movements %}
+        <tr>
+          <td class="text-muted">{{ mv.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+          <td>
+            {% if mv.product %}
+              <a href="{{ url_for('products.view_product', product_id=mv.product.id) }}" class="text-decoration-none fw-semibold">{{ mv.product.name }}</a>
+            {% else %}
+              <span class="text-muted">Producto eliminado</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if mv.movement_type == 'entrada' else 'text-bg-danger' }}">
+              {{ mv.movement_type|capitalize }}
+            </span>
+          </td>
+          <td>{{ '+' if mv.movement_type == 'entrada' else '-' }}{{ mv.quantity }}</td>
+          <td class="text-muted">{{ mv.reason or "—" }}</td>
+          <td class="text-muted">{{ mv.user.username if mv.user else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <nav class="mt-3">
+    <ul class="pagination justify-content-center mb-0">
+      {% for page_num in pagination.iter_pages() %}
+        {% if page_num %}
+          <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('movements.list_movements', page=page_num) }}">{{ page_num }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-arrow-left-right"></i>
+    <p class="mt-2 mb-0">Aún no hay movimientos registrados.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- VENTANA MODAL PARA REGISTRAR MOVIMIENTO -->
+<div class="modal fade" id="modalRegistrarMovimiento" tabindex="-1" aria-labelledby="modalRegistrarMovimientoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalRegistrarMovimientoLabel">Registrar movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form action="{{ url_for('movements.create_movement') }}" method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="modal-body">
+          <div class="mb-3">
+            {{ form.product_id.label(class="form-label small fw-semibold") }}
+            {{ form.product_id(class="form-select" + (" is-invalid" if form.product_id.errors else "")) }}
+            {% for error in form.product_id.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold d-block">Tipo de movimiento</label>
+            <div class="btn-group w-100" role="group">
+              {% for subfield in form.movement_type %}
+              <input type="radio" class="btn-check" name="{{ subfield.name }}" id="modal_{{ subfield.id }}" value="{{ subfield.data }}" {% if subfield.checked %}checked{% endif %} autocomplete="off">
+              <label class="btn btn-outline-secondary" for="modal_{{ subfield.id }}">
+                {% if subfield.data == 'entrada' %}<i class="bi bi-box-arrow-in-down-left"></i>{% else %}<i class="bi bi-box-arrow-up-right"></i>{% endif %}
+                {{ subfield.label.text }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.quantity.label(class="form-label small fw-semibold") }}
+            {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else "")) }}
+            {% for error in form.quantity.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.reason.label(class="form-label small fw-semibold") }}
+            {{ form.reason(class="form-control", placeholder="Ej. Compra a proveedor, venta, ajuste de inventario...") }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-brand px-4">Guardar movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

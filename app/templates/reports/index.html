@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Reportes — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-0">Centro de Reportes</h3>
+    <p class="text-muted mb-0">Generación de informes de inventario y movimientos</p>
+  </div>
+  <!-- BOTONES DE ACCIÓN Y EXPORTACIÓN -->
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.export_excel') }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i> Exportar Excel
+    </a>
+    <a href="{{ url_for('reports.export_pdf') }}" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+    </a>
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i> Imprimir
+    </button>
+  </div>
+</div>
+
+<!-- TARJETAS DE MÉTRICAS GENERALES -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="app-card p-3 border-start border-4 border-primary">
+      <span class="text-muted small fw-semibold">VALOR TOTAL DE INVENTARIO</span>
+      <h3 class="fw-bold my-1">${{ "%.2f"|format(inventory_value) }}</h3>
+      <span class="text-muted small">Basado en stock x precio unitario</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="app-card p-3 border-start border-4 border-info">
+      <span class="text-muted small fw-semibold">TOTAL DE PRODUCTOS</span>
+      <h3 class="fw-bold my-1">{{ total_products }}</h3>
+      <span class="text-muted small">Ítems registrados activos</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="app-card p-3 border-start border-4 border-danger">
+      <span class="text-muted small fw-semibold">PRODUCTOS EN STOCK BAJO</span>
+      <h3 class="fw-bold my-1 text-danger">{{ low_stock_products|length }}</h3>
+      <span class="text-muted small">Igual o menor al stock mínimo</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- REPORTE DE CATEGORÍAS -->
+  <div class="col-md-6">
+    <div class="app-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-tags me-2 text-primary"></i>Resumen por Categorías</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Categoría</th>
+              <th class="text-center">Cant. Productos</th>
+              <th class="text-end">Stock Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat_name, items, stock in category_summary %}
+            <tr>
+              <td class="fw-medium">{{ cat_name }}</td>
+              <td class="text-center"><span class="badge bg-secondary">{{ items }}</span></td>
+              <td class="text-end fw-bold">{{ stock or 0 }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted">Sin categorías disponibles</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORTE DE ALERTAS / STOCK CRÍTICO -->
+  <div class="col-md-6">
+    <div class="app-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Stock Crítico</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Producto</th>
+              <th class="text-center">Stock Actual</th>
+              <th class="text-center">Stock Mínimo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in low_stock_products %}
+            <tr>
+              <td class="fw-medium">{{ p.name }}</td>
+              <td class="text-center"><span class="badge text-bg-danger">{{ p.quantity }}</span></td>
+              <td class="text-center text-muted">{{ p.min_stock }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-3">
+                <i class="bi bi-check-circle text-success me-1"></i> No hay productos con stock bajo
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

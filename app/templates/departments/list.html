@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Departamentos — {{ app_name }}{% endblock %}
+{% block content %}
+
+<!-- ALERTAS DE FLASH -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+        <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else 'bi-exclamation-triangle-fill text-danger' }} me-2"></i>
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-0">Departamentos</h3>
+    <p class="text-muted mb-0">{{ departments|length }} departamento(s)</p>
+  </div>
+  <!-- BOTÓN APERTURA MODAL NUEVO DEPARTAMENTO -->
+  <button type="button" class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
+    <i class="bi bi-plus-lg"></i> Nuevo departamento
+  </button>
+</div>
+
+<div class="row g-3">
+  {% for d in departments %}
+  <div class="col-md-6 col-lg-4">
+    <div class="app-card p-3 h-100 d-flex flex-column">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h6 class="fw-bold mb-1">{{ d.name }}</h6>
+          <p class="text-muted small mb-2">{{ d.description or "Sin descripción" }}</p>
+        </div>
+        <span class="badge text-bg-light border">{{ d.categories|length }} categ.</span>
+      </div>
+      <div class="mt-auto d-flex gap-2 pt-2">
+        <!-- BOTÓN EDITAR -->
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-fill"
+                data-bs-toggle="modal" data-bs-target="#editDepartmentModal{{ d.id }}">
+          <i class="bi bi-pencil"></i> Editar
+        </button>
+        
+        <!-- BOTÓN ELIMINAR -->
+        <button type="button" class="btn btn-sm btn-outline-danger flex-fill"
+                data-bs-toggle="modal" data-bs-target="#delDept{{ d.id }}">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL EDITAR DEPARTAMENTO -->
+    <div class="modal fade text-start" id="editDepartmentModal{{ d.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Editar departamento</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <form action="{{ url_for('departments.edit_department', department_id=d.id) }}" method="POST">
+            {{ department_form.hidden_tag() }}
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Nombre</label>
+                <input type="text" name="name" class="form-control" value="{{ d.name }}" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Descripción</label>
+                <textarea name="description" class="form-control" rows="3">{{ d.description or '' }}</textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-brand px-4">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ELIMINAR DEPARTAMENTO -->
+    <div class="modal fade text-start" id="delDept{{ d.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-body p-4">
+            <p class="mb-0">¿Eliminar el departamento <strong>{{ d.name }}</strong>?</p>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <form method="POST" action="{{ url_for('departments.delete_department', department_id=d.id) }}">
+              <button type="submit" class="btn btn-danger">Eliminar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="app-card empty-state text-center py-4">
+      <i class="bi bi-diagram-3 display-4 text-muted"></i>
+      <p class="mt-2 mb-0 text-muted">Aún no hay departamentos.</p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- MODAL CREAR NUEVO DEPARTAMENTO -->
+<div class="modal fade text-start" id="createDepartmentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Nuevo departamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form action="{{ url_for('departments.create_department') }}" method="POST">
+        {{ department_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="mb-3">
+            {{ department_form.name.label(class="form-label small fw-semibold") }}
+            {{ department_form.name(class="form-control") }}
+          </div>
+          <div class="mb-3">
+            {{ department_form.description.label(class="form-label small fw-semibold") }}
+            {{ department_form.description(class="form-control", rows=3) }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-brand px-4">Guardar departamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
